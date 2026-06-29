@@ -2,9 +2,9 @@ name: Update GitHub Actions Versions
 
 on:
   schedule:
-    # Every Monday at 06:00 UTC
+    # Every Monday at 06:00 UTC (off-peak minute to avoid stampede)
     - cron: "37 6 * * 1"
-  workflow_dispatch:  # allow manual trigger
+  workflow_dispatch:
   push:
     paths:
       - ".github/scripts/update-actions-list.sh"
@@ -24,27 +24,34 @@ jobs:
       - name: Run update script
         run: bash .github/scripts/update-actions-list.sh
 
-      - name: Check for changes
-        id: diff
+      - name: Create or update PR
         run: |
+          BRANCH="chore/update-actions-table"
+
           if git diff --quiet actions-versions.md; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "No version changes — nothing to do."
-          else
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-            git diff actions-versions.md
+            exit 0
           fi
 
-      - name: Create Pull Request
-        if: steps.diff.outputs.changed == 'true'
-        uses: peter-evans/create-pull-request@v7
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "chore: update GitHub Actions version table"
-          title: "chore: update GitHub Actions version table"
-          body: |
-            Automated update of the GitHub Actions latest-version table.
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
-            Ran `update-actions-list.sh` — detected new releases.
-          branch: chore/update-actions-table
-          delete-branch: true
+          git checkout -b "$BRANCH"
+          git add actions-versions.md
+          git commit -m "chore: update GitHub Actions version table
+
+          Automated by update-actions-list.sh"
+
+          git push origin "$BRANCH" --force
+
+          # Use gh CLI — no third-party action needed
+          gh pr create \
+            --title "chore: update GitHub Actions version table" \
+            --body "Automated by \`update-actions-list.sh\` — detected new releases from \`github.com/actions/\`." \
+            --base master \
+            --head "$BRANCH" \
+            || gh pr edit "$BRANCH" \
+              --title "chore: update GitHub Actions version table" \
+              --body "Automated by \`update-actions-list.sh\` — detected new releases from \`github.com/actions/\`."
+        env:
+          GH_TOKEN: ${{ github.token }}
