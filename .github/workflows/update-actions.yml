@@ -2,56 +2,38 @@ name: Update GitHub Actions Versions
 
 on:
   schedule:
-    # Every Monday at 06:00 UTC (off-peak minute to avoid stampede)
+    # Every Monday at 06:00 UTC
     - cron: "37 6 * * 1"
   workflow_dispatch:
-  push:
-    paths:
-      - ".github/scripts/update-actions-list.sh"
-      - ".github/workflows/update-actions.yml"
 
 permissions:
   contents: write
-  pull-requests: write
+  actions: write
 
 jobs:
   update:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Run update script
         run: bash .github/scripts/update-actions-list.sh
 
-      - name: Create or update PR
+      - name: Generate commit branch
+        id: branch
         run: |
-          BRANCH="chore/update-actions-table"
+          echo "branch=update-actions-$(date +'%Y.%m.%d-%H%M')" >> "$GITHUB_OUTPUT"
 
-          if git diff --quiet actions-versions.md; then
-            echo "No version changes — nothing to do."
-            exit 0
-          fi
+      - uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: update GitHub Actions version table"
+          branch: ${{ steps.branch.outputs.branch }}
+          file_pattern: actions-versions.md
+          create_branch: true
 
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          git checkout -b "$BRANCH"
-          git add actions-versions.md
-          git commit -m "chore: update GitHub Actions version table
-
-          Automated by update-actions-list.sh"
-
-          git push origin "$BRANCH" --force
-
-          # Use gh CLI — no third-party action needed
-          gh pr create \
-            --title "chore: update GitHub Actions version table" \
-            --body "Automated by \`update-actions-list.sh\` — detected new releases from \`github.com/actions/\`." \
-            --base master \
-            --head "$BRANCH" \
-            || gh pr edit "$BRANCH" \
-              --title "chore: update GitHub Actions version table" \
-              --body "Automated by \`update-actions-list.sh\` — detected new releases from \`github.com/actions/\`."
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - uses: everlytic/branch-merge@1.1.5
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          source_ref: ${{ steps.branch.outputs.branch }}
+          target_branch: master
+          commit_message_template: '[Automated] Merged {source_ref} into target {target_branch}'
