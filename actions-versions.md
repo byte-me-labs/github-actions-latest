@@ -9,7 +9,7 @@
 | `actions/attest` | 4 | v4.1.1 | 2026-06-26 |
 | `actions/container-prebuilt-action` | 0 | v0.2.0 | 2025-06-06 |
 | `actions/publish-immutable-action` | 0 | v0.0.4 | 2024-10-22 |
-| `actions/action-versions` | 1 | v1.0.45 | 2026-06-22 |
+| `actions/action-versions` | 1 | v1.0.46 | 2026-06-29 |
 | `actions/create-github-app-token` | 3 | v3.2.0 | 2026-05-12 |
 | `actions/languageservices` | release-v0.3.58 | release-v0.3.58 | 2026-06-11 |
 | `actions/configure-pages` | 6 | v6.0.0 | 2026-03-25 |
